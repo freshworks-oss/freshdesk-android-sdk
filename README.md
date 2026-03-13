@@ -167,3 +167,43 @@ Usage
 ```kotlin
   FreshdeskSDK.dismissFreshdeskViews()
 ```
+
+### Reset User
+The `resetUser` method allows you to clear the current user's session and data from the SDK. This is particularly useful when a user logs out of your application or when you want to switch between different user accounts. When called, this method will reset all user-specific data including conversations, user properties, and authentication state.
+
+Usage
+```kotlin
+  FreshdeskSDK.resetUser(
+      onSuccess = { message ->
+          // Handle successful user reset
+          // Perform any cleanup operations needed in your app
+          Log.d("FreshdeskSDK", "User reset successful: $message")
+      },
+      onFailure = { errorMessage ->
+          // Handle failure case
+          Log.e("FreshdeskSDK", "Failed to reset user: $errorMessage")
+      }
+  )
+```
+
+Example - Reset user on logout:
+```kotlin
+  fun logoutUser() {
+      FreshdeskSDK.resetUser(
+          onSuccess = {
+              // Clear your app's user session
+              clearUserSession()
+              // Navigate to login screen
+              navigateToLogin()
+          },
+          onFailure = { error ->
+              // Even on failure, you might want to clear local state
+              clearUserSession()
+              showErrorMessage("Failed to reset Freshdesk user: $error")
+          }
+      )
+  }
+```
+
+Note: It is recommended to call `resetUser` before initializing the SDK with a different user's credentials or configuration.
+
