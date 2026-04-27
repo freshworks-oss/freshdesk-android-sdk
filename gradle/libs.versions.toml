@@ -1,11 +1,11 @@
 [versions]
 ktx = "1.12.0"
-kotlin-android = "1.9.22"
-kotlin-ksp = "1.9.10-1.0.13"
+kotlin-android = "2.1.21"
+kotlin-ksp = "2.1.21-2.0.1"
 appcompat = "1.6.1"
 material = "1.12.0"
 gson = "2.10.1"
-agp = "8.2.2"
+agp = "8.13.2"
 lifecycle = "2.7.0"
 google-services = "4.4.2"
 compose = "1.6.1"
@@ -13,8 +13,8 @@ messaging = "23.4.1"
 activity-compose = "1.8.2"
 compose-bom = "2025.02.00"
 
-freshdesk = "1.0.4"
-freshdesk-SNAPSHOT = "1.0.2-SNAPSHOT"
+freshdesk = "2.0.0"
+freshdesk-SNAPSHOT = "2.0.0-SNAPSHOT"
 
 [libraries]
 freshdesk = { group = "com.freshworks.sdk", name = "freshdesk", version.ref = "freshdesk" }
@@ -39,6 +39,8 @@ firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin-android" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin-android" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "kotlin-ksp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-android" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
+
