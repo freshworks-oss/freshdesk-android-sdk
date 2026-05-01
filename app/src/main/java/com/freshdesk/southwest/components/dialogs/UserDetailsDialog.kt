@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.freshdesk.southwest.components.buttons.ConfirmButton
 import com.freshdesk.southwest.data.DialogConfig
 import com.freshworks.sdk.freshdesk.backend.model.User
+import com.freshworks.sdk.freshdesk.backend.model.toDisplayString
 
 @Composable
 fun UserDetailDialog(
@@ -63,7 +64,7 @@ fun UserDetailDialog(
                     UserDetailRow("Rule Id", user.ruleId)
                     SpaceAndDivider()
                     user.customProps.forEach { (key, value) ->
-                        UserDetailRow(key, value)
+                        UserDetailRow(key, value.toDisplayString())
                         SpaceAndDivider()
                     }
                 }
