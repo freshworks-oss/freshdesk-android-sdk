@@ -2,8 +2,19 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-parcelize")
-    alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Google Services / Firebase are optional for this sample: the public repo does not ship
+// google-services.json. When that file is absent, we skip the plugin so CI and clones
+// still assemble; push (FCM) is not configured in that case.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+} else {
+    logger.lifecycle(
+        "${project.path}: app/google-services.json not found — skipping com.google.gms.google-services " +
+            "(FCM / push notifications are not configured for this build).",
+    )
 }
 
 android {
