@@ -1,0 +1,94 @@
+# When a GitHub Release is published or edited, build the sample app **debug** APK and attach it to that same release
+# so the file appears on the release page for direct download.
+#
+# Uses the stable Freshdesk SDK from the debug variant ([versions] freshdesk in gradle/libs.versions.toml).
+# The APK filename includes that version and the UTC build date.
+#
+# CI omits google-services.json; the Google Services plugin is skipped and FCM is not configured (see app/build.gradle.kts).
+name: Attach sample debug APK to GitHub Release
+
+on:
+  release:
+    types: [published, edited]
+
+concurrency:
+  group: sample-debug-apk-asset-${{ github.repository }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: true
+
+jobs:
+  attach-debug-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            tools
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve Freshdesk SDK version and build date
+        id: meta
+        run: |
+          set -euo pipefail
+          SDK_VER="$(sed -n 's/^freshdesk = "\(.*\)"/\1/p' gradle/libs.versions.toml | head -n1)"
+          if [ -z "${SDK_VER}" ]; then
+            echo "::error::Could not read freshdesk version from gradle/libs.versions.toml"
+            exit 1
+          fi
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
+          SAFE_DATE="$(date -u +%Y%m%d)"
+          echo "sdk_version=${SDK_VER}" >> "${GITHUB_OUTPUT}"
+          echo "build_date=${BUILD_DATE}" >> "${GITHUB_OUTPUT}"
+          echo "safe_date=${SAFE_DATE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Gradle assembleDebug
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew ":app:assembleDebug" --stacktrace
+
+      - name: Stage APK for upload
+        id: apk
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          APK_DIR="app/build/outputs/apk/debug"
+          SRC="$(find "${APK_DIR}" -maxdepth 1 -name '*.apk' -type f | head -n1)"
+          if [ -z "${SRC}" ]; then
+            echo "::error::No APK under ${APK_DIR}"
+            find app/build/outputs -type f 2>/dev/null || true
+            exit 1
+          fi
+          TAG_SAFE="$(echo "${RELEASE_TAG}" | tr '/:' '--')"
+          OUT_NAME="Freshdesk-Sample-debug-${TAG_SAFE}-sdk-${{ steps.meta.outputs.sdk_version }}-${{ steps.meta.outputs.safe_date }}.apk"
+          mkdir -p upload
+          DEST="upload/${OUT_NAME}"
+          cp -f "${SRC}" "${DEST}"
+          echo "path=${DEST}" >> "${GITHUB_OUTPUT}"
+          ls -la "${DEST}"
+
+      - name: Upload APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "${{ github.event.release.tag_name }}" "${{ steps.apk.outputs.path }}" --clobber --repo "${{ github.repository }}"
