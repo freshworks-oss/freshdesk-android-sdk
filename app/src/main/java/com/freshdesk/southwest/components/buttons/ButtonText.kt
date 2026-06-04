@@ -26,14 +26,31 @@ fun ButtonText(
     ),
     onClick: () -> Unit = {}
 ) {
-    Button(
-        onClick = {
-            onClick.invoke()
-        }, shape = ShapeDefaults.Large,
+    ButtonText(
+        text = stringResource(id = textId),
+        modifier = modifier,
         colors = colors,
-        modifier = modifier
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun ButtonText(
+    text: String,
+    modifier: Modifier = Modifier.padding(top = 8.dp),
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.surface
+    ),
+    onClick: () -> Unit = {},
+) {
+    Button(
+        onClick = { onClick.invoke() },
+        shape = ShapeDefaults.Large,
+        colors = colors,
+        modifier = modifier,
     ) {
-        Text(text = stringResource(id = textId))
+        Text(text = text)
     }
 }
 

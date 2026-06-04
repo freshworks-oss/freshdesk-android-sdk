@@ -44,6 +44,7 @@ import com.freshdesk.southwest.SouthWestApp
 import com.freshdesk.southwest.TAG
 import com.freshdesk.southwest.components.buttons.ButtonText
 import com.freshdesk.southwest.components.dialogs.ConfigureSwitcherDialog
+import com.freshdesk.southwest.components.dialogs.ContentConfigurationDialog
 import com.freshdesk.southwest.components.dialogs.LoadAccountForm
 import com.freshdesk.southwest.components.dialogs.ProgressBarDialog
 import com.freshdesk.southwest.components.dialogs.TextFieldDialog
@@ -51,6 +52,7 @@ import com.freshdesk.southwest.components.dialogs.UpdateAuthTokenDialog
 import com.freshdesk.southwest.components.dialogs.UpdateTicketDialog
 import com.freshdesk.southwest.components.dialogs.UpdateUserDialog
 import com.freshdesk.southwest.components.dialogs.UserDetailDialog
+import com.freshdesk.southwest.components.dialogs.demoContentConfiguration
 import com.freshdesk.southwest.data.DataStore
 import com.freshdesk.southwest.data.DataStore.clearUser
 import com.freshdesk.southwest.data.DataStore.getSelectedAccount
@@ -130,11 +132,16 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
             UpdateJWT()
             UpdateUserProperties()
             UpdateTicketProperties()
+            ApplyDemoContentConfiguration()
+            ClearContentConfiguration()
             LogUserEvent()
             GetUser()
             Configure()
             ResetUser()
             LoadAccount()
+//            Ticket Forms SDK commented
+//            OpenArticle()
+//            TicketForm()
         }
     }
 
@@ -187,6 +194,15 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
     }
 
+    /*Ticket Forms SDK commented
+    @Composable
+    fun TicketForm() {
+        ButtonText(text = TicketFormTestActivity.MENU_LABEL) {
+            startActivity(Intent(this@SettingsActivity, TicketFormTestActivity::class.java))
+        }
+    }
+     */
+
     @Composable
     fun OpenTopic() {
         val openDialog = rememberSaveable { mutableStateOf(false) }
@@ -214,6 +230,34 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
     }
 
+    /*Ticket Forms SDK commented
+    @Composable
+    fun OpenArticle() {
+        val openDialog = rememberSaveable { mutableStateOf(false) }
+        if (openDialog.value) {
+            TextFieldDialog(
+                config = DialogConfig(title = R.string.open_article),
+                textField1 = Pair(R.string.article_id, "4374493"),
+                onConfirmed = {
+                    openDialog.value = false
+                    val articleId = it.field1.toIntOrNull()
+                    if (articleId == null) {
+                        toast(getString(R.string.inbound_event_invalid_input))
+                    } else {
+                        FreshdeskSDK.openArticle(this@SettingsActivity, articleId)
+                    }
+                },
+                onDismissed = {
+                    openDialog.value = false
+                }
+            )
+        }
+        ButtonText(textId = R.string.open_article) {
+            openDialog.value = true
+        }
+    }
+     */
+
     @Composable
     private fun ShowKnowledgeBase() {
         ButtonText(textId = R.string.show_knowledge_base) {
@@ -238,6 +282,35 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
         ButtonText(textId = R.string.update_ticket_properties) {
             openDialog.value = true
+        }
+    }
+
+    @Composable
+    private fun ApplyDemoContentConfiguration() {
+        val openDialog = rememberSaveable { mutableStateOf(false) }
+        if (openDialog.value) {
+            ContentConfigurationDialog(
+                onDismiss = { openDialog.value = false },
+                onApplyDemo = {
+                    FreshdeskSDK.setContentConfiguration(demoContentConfiguration())
+                    toast(getString(R.string.toast_demo_content_configuration_applied))
+                },
+                onApplyCustom = { configuration ->
+                    FreshdeskSDK.setContentConfiguration(configuration)
+                    toast(getString(R.string.toast_custom_content_configuration_applied))
+                },
+            )
+        }
+        ButtonText(textId = R.string.set_demo_content_configuration) {
+            openDialog.value = true
+        }
+    }
+
+    @Composable
+    private fun ClearContentConfiguration() {
+        ButtonText(textId = R.string.clear_content_configuration) {
+            FreshdeskSDK.setContentConfiguration(null)
+            toast(getString(R.string.toast_content_configuration_cleared))
         }
     }
 

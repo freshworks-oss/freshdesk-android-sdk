@@ -27,6 +27,7 @@
     <string name="identify_show">Identify/Show</string>
     <string name="open_support">Open Support</string>
     <string name="open_topic">Open Topic</string>
+    <string name="open_article">Open Article</string>
     <string name="show_knowledge_base">Show Knowledge Base</string>
     <string name="update_user">Update User</string>
     <string name="update_ticket">Update Ticket</string>
@@ -48,6 +49,7 @@
     <string name="ref_id">Reference Id</string>
     <string name="topic_name">Topic name</string>
     <string name="topic_id">Topic Id</string>
+    <string name="article_id">Article Id</string>
     <string name="open">Open</string>
     <string name="user_details">User Details</string>
     <string name="dismiss">Dismiss</string>
@@ -133,6 +135,29 @@
     <string name="update_localization_support">Localization Support</string>
     <string name="config_header_property_label_id">Header Property</string>
     <string name="config_content_property_label_id">Content Property</string>
+    <string name="set_demo_content_configuration">Apply demo content (widget strings)</string>
+    <string name="clear_content_configuration">Clear content overrides</string>
+    <string name="toast_demo_content_configuration_applied">Demo content configuration applied</string>
+    <string name="toast_content_configuration_cleared">Content overrides cleared</string>
+    <string name="toast_custom_content_configuration_applied">Custom content configuration applied</string>
+    <string name="content_configuration_dialog_title">Widget string overrides</string>
+    <string name="content_configuration_use_demo_checkbox">Use built-in demo (ignore fields below)</string>
+    <string name="content_configuration_dialog_hint">Uncheck to edit values. Empty fields are omitted so the widget keeps its default copy for those keys.</string>
+    <string name="content_configuration_reset_fields">Reset fields to demo</string>
+    <string name="content_configuration_apply">Apply</string>
+    <string name="content_cfg_chat">Chat tab / header</string>
+    <string name="content_cfg_faq">FAQ header</string>
+    <string name="content_cfg_faq_message_us">FAQ message us</string>
+    <string name="content_cfg_channel_offline">Channel offline message</string>
+    <string name="content_cfg_ticket_title">Ticket form title</string>
+    <string name="content_cfg_ticket_list_title">Ticket list title</string>
+    <string name="content_cfg_ticket_submit">Ticket submit button</string>
+    <string name="content_cfg_ticket_confirmation">Ticket confirmation message</string>
+    <string name="content_cfg_placeholder_reply">Reply field placeholder</string>
+    <string name="content_cfg_placeholder_search">Search field placeholder</string>
+    <string name="content_cfg_privacy_message">Privacy message</string>
+    <string name="content_cfg_privacy_link_text">Privacy link label</string>
+    <string name="content_cfg_privacy_link">Privacy link URL</string>
 
     <!--    Content Descriptions-->
     <string name="profile_icon">Profile Icon</string>

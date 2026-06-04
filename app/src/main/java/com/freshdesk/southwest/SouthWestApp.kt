@@ -25,10 +25,6 @@ import com.freshworks.sdk.freshdesk.core.FreshdeskWebviewListener
 import com.freshworks.sdk.freshdesk.data.SDKConfig
 import com.freshworks.sdk.freshdesk.events.SDKEventID
 import com.freshworks.sdk.freshdesk.handlers.FreshdeskUserInteractionListener
-import com.freshworks.logging.LogUploader
-import com.freshworks.logging.log.LogEntry
-import com.freshworks.logging.log.LogSession
-import com.freshworks.logging.sampling.Logger
 import com.freshworks.sdk.freshdesk.events.UserState.Companion.AUTH_EXPIRED
 import com.freshworks.sdk.freshdesk.notification.NotificationConfig
 import com.freshworks.sdk.freshdesk.utils.changeLocale

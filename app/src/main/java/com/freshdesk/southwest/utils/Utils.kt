@@ -36,5 +36,5 @@ fun Context.logEvent(event: String, data: String, toastData: Boolean = false) {
         val toastMessage = if (toastData && data.isNotEmpty()) "$event : $data" else event
         toast(toastMessage)
     }
-    Log.d("$TAG $event", data)
+    Log.d(TAG, "$event: $data")
 }

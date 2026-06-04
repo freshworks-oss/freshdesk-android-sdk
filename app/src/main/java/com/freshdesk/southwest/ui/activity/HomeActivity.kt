@@ -1,12 +1,16 @@
 package com.freshdesk.southwest.ui.activity
 
 // import com.freshworks.sdk.freshdesk.BuildConfig
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -74,6 +78,13 @@ class HomeActivity : ComponentActivity() {
 
     private val viewModel: HomeViewModel by viewModels()
 
+    // Notification permission launcher for Android 13+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        android.util.Log.d(SOUTH_WEST, "Notification permission ${if (isGranted) "granted" else "denied"}")
+    }
+
     companion object {
         fun getIntent(context: Context, showSplashScreen: Boolean): Intent {
             return Intent(context, HomeActivity::class.java).apply {
@@ -91,6 +102,29 @@ class HomeActivity : ComponentActivity() {
             }
         }
         applySDK35InsetsListener()
+
+        // Request notification permission for Android 13+ (API 33+)
+        requestNotificationPermissionIfNeeded()
+    }
+
+    /**
+     * Requests notification permission if running on Android 13+ and permission not yet granted.
+     * This is required for the Freshdesk SDK to post notifications.
+     */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED -> {
+                    // Permission already granted
+                    android.util.Log.d(SOUTH_WEST, "Notification permission already granted")
+                }
+                else -> {
+                    // Request permission
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
 
     @Composable

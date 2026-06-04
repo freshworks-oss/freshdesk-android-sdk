@@ -9,6 +9,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -30,12 +31,12 @@ import com.freshdesk.southwest.ui.theme.SouthWestTheme
 fun TextFieldDialog(
     config: DialogConfig,
     textField1: Pair<Int, String>,
-    textField2: Pair<Int, String>,
+    textField2: Pair<Int, String>? = null,
     onConfirmed: (TextFieldDialog) -> Unit,
     onDismissed: () -> Unit
 ) {
     val field1 = rememberSaveable { mutableStateOf(textField1.second) }
-    val field2 = rememberSaveable { mutableStateOf(textField2.second) }
+    val field2 = rememberSaveable { mutableStateOf(textField2?.second.orEmpty()) }
     AlertDialog(
         onDismissRequest = {
         },
@@ -46,35 +47,7 @@ fun TextFieldDialog(
             )
         },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                FormField(
-                    labelId = textField1.first,
-                    value = field1.value,
-                    config = FieldConfig(
-                        isBlank = field1.value.isBlank(),
-                        trailingIcon = {
-                            ClearButton { field1.value = "" }
-                        }
-                    ),
-                    onValueChange = { field1.value = it }
-                )
-                if (config.showDescription) {
-                    ShowDescription()
-                }
-                FormField(
-                    labelId = textField2.first,
-                    value = field2.value,
-                    config = FieldConfig(
-                        isBlank = field2.value.isBlank(),
-                        trailingIcon = {
-                            ClearButton {
-                                field2.value = ""
-                            }
-                        }
-                    ),
-                    onValueChange = { field2.value = it }
-                )
-            }
+            TextFieldDialogForm(config, textField1, textField2, field1, field2)
         },
         confirmButton = {
             ConfirmButton(config.positiveText) {
@@ -90,6 +63,41 @@ fun TextFieldDialog(
             DismissButton { onDismissed.invoke() }
         }
     )
+}
+
+@Composable
+private fun TextFieldDialogForm(
+    config: DialogConfig,
+    textField1: Pair<Int, String>,
+    textField2: Pair<Int, String>?,
+    field1: MutableState<String>,
+    field2: MutableState<String>,
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        FormField(
+            labelId = textField1.first,
+            value = field1.value,
+            config = FieldConfig(
+                isBlank = field1.value.isBlank(),
+                trailingIcon = { ClearButton { field1.value = "" } }
+            ),
+            onValueChange = { field1.value = it }
+        )
+        if (config.showDescription) {
+            ShowDescription()
+        }
+        textField2?.let { secondField ->
+            FormField(
+                labelId = secondField.first,
+                value = field2.value,
+                config = FieldConfig(
+                    isBlank = field2.value.isBlank(),
+                    trailingIcon = { ClearButton { field2.value = "" } }
+                ),
+                onValueChange = { field2.value = it }
+            )
+        }
+    }
 }
 
 @Composable
