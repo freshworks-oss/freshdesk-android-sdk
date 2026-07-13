@@ -20,6 +20,7 @@ import com.freshdesk.southwest.utils.logd
 import com.freshdesk.southwest.utils.toast
 import com.freshworks.sdk.freshdesk.FreshdeskSDK
 import com.freshworks.sdk.freshdesk.FreshdeskSDK.setFreshdeskUserInteractionListener
+import com.freshworks.sdk.freshdesk.HostPlatform
 import com.freshworks.sdk.freshdesk.backend.model.User
 import com.freshworks.sdk.freshdesk.core.FreshdeskWebviewListener
 import com.freshworks.sdk.freshdesk.data.SDKConfig
@@ -61,7 +62,8 @@ class SouthWestApp : Application(), FreshdeskUserInteractionListener {
             SDKConfig(
                 token = "<YOUR SDK TOKEN>",
                 host = "<YOUR HOST NAME>",
-                sdkID = "<YOUR SDK ID>"
+                sdkID = "<YOUR SDK ID>",
+                hostPlatform = HostPlatform.ANDROID
             ),
             this
         )
