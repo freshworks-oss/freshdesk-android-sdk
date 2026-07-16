@@ -13,8 +13,8 @@ messaging = "23.4.1"
 activity-compose = "1.8.2"
 compose-bom = "2025.02.00"
 
-freshdesk = "2.2.2"
-freshdesk-SNAPSHOT = "2.2.2-SNAPSHOT"
+freshdesk = "2.2.3"
+freshdesk-SNAPSHOT = "2.2.3-SNAPSHOT"
 
 [libraries]
 freshdesk = { group = "com.freshworks.sdk", name = "freshdesk", version.ref = "freshdesk" }
