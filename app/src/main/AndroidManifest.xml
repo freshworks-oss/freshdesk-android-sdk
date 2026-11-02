@@ -14,9 +14,9 @@
         <activity
             android:name=".ui.activity.SettingsActivity"
             android:exported="false" />
-<!--        <activity-->
-<!--            android:name=".ui.activity.TicketFormTestActivity"-->
-<!--            android:exported="false" />-->
+        <activity
+            android:name=".ui.activity.TicketFormActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.activity.MyOrdersActivity"
             android:exported="false"
@@ -45,7 +45,7 @@
         </activity>
 
         <service
-            android:name=".service.MyMessagingService"
+            android:name=".service.FirebaseMessagingService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

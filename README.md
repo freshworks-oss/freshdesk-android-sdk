@@ -26,6 +26,9 @@ Integrate Freshdesk messaging, knowledge base, and push notifications into your 
 - [User session management](#user-session-management)
 - [API reference](#api-reference)
 - [Troubleshooting](#troubleshooting)
+- [Sample app](#sample-app)
+- [Migrating from Freshchat](#migrating-from-freshchat)
+- [Learn more](#learn-more)
 
 ---
 
@@ -66,7 +69,8 @@ If you use FCM push:
 | Requirement | Value |
 |-------------|-------|
 | Minimum SDK | 26 |
-| Compile / target SDK | 35 (recommended) |
+| Compile / target SDK | 36 (recommended for the sample app) |
+| **Gradle JVM (Android Studio)** | **JDK 17 or 21** — Gradle 8.13 does not support Java 24+ |
 | Repository | Maven Central |
 
 The SDK merges `INTERNET` and network-state permissions automatically. For push on **Android 13+ (API 33+)**, declare and request `POST_NOTIFICATIONS` in your app (see [Push notifications](#push-notifications)).
@@ -844,12 +848,42 @@ Call `resetUser()` before `initialize()` with a different user’s `SDKConfig`.
 | Link handler ignored | Strong reference to `FreshDeskSDKLinkHandler` implementation |
 | Switching users fails | Call `resetUser()` before new JWT or `initialize` |
 | Init fails with JWT | Enforced widget requires valid `jwt` in `SDKConfig` |
+| **Incompatible Gradle JVM** (Java 24/25) | **File → Settings → Build Tools → Gradle → Gradle JDK** → choose **jbr-21** or **JDK 17** |
 
 For version diagnostics:
 
 ```kotlin
 Log.d("FreshdeskSDK", "${FreshdeskSDK.getSDKVersionName()} (${FreshdeskSDK.getSDKVersionCode()}) build ${FreshdeskSDK.getSDKBuildID()}")
 ```
+
+---
+
+## Sample app
+
+The **`app`** module is the **Southwest** demo application. It shows initialization, JWT, push (when `app/google-services.json` is present), content configuration, ticket-form samples, and SDK event handling against the Maven Central artifact.
+
+**Credentials:** The repo does not ship Freshdesk tokens or hosts. After installing the app, open **Settings → Load account** and enter your **token**, **host**, and **sdkID** from **Admin Settings → Mobile Chat SDK** in your Freshdesk portal, then re-initialize the SDK from the demo UI.
+
+Build debug APK (no Firebase file required):
+
+```bash
+./gradlew :app:assembleDebug
+```
+
+The demo tracks the latest published SDK version in `gradle/libs.versions.toml`.
+
+---
+
+## Migrating from Freshchat
+
+If you integrate the legacy **Freshchat Android SDK** (`com.github.freshworks:freshchat-android`), use the **[AI Integration Kit](./AI-Integration-kit/)**:
+
+| File | Purpose |
+|------|---------|
+| [AI-Integration-kit/SKILL.md](./AI-Integration-kit/SKILL.md) | Step-by-step instructions for AI coding agents |
+| [AI-Integration-kit/MIGRATION_FRESHCHAT_TO_FRESHDESK_ANDROID.md](./AI-Integration-kit/MIGRATION_FRESHCHAT_TO_FRESHDESK_ANDROID.md) | Full API mapping, before/after code, and checklist |
+
+Copy the kit into your app repo or `@`-mention both files in Cursor, Claude, or other assistants. See [AI-Integration-kit/README.md](./AI-Integration-kit/README.md) for tool-specific setup (including keeping both files together so relative links work).
 
 ---
 

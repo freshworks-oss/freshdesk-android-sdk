@@ -3,13 +3,12 @@ package com.freshdesk.southwest.data
 import com.google.gson.GsonBuilder
 
 object TicketFormSamples {
-    const val SAMPLE_FORM_ID = "612371"
-    const val SAMPLE_ARTICLE_ID = "4374493"
+    const val SAMPLE_FORM_ID = ""
     private const val SAMPLE_GROUP_ID = 123
     private const val SAMPLE_REFERENCE_NUMBER = 223
     private const val SAMPLE_DECIMAL = 0.2
-    private const val SAMPLE_HIDE_PRIORITY_LOW = "2"
-    private const val SAMPLE_HIDE_PRIORITY_HIGH = "3"
+    private const val SAMPLE_HIDE_PRIORITY_LOW = 2
+    private const val SAMPLE_HIDE_PRIORITY_HIGH = 3
     private val SAMPLE_HIDE_PRIORITY_IDS = listOf(SAMPLE_HIDE_PRIORITY_LOW, SAMPLE_HIDE_PRIORITY_HIGH)
 
     private val gson = GsonBuilder().setPrettyPrinting().create()

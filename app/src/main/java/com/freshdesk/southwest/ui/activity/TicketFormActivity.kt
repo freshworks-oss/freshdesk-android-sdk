@@ -39,6 +39,7 @@ import com.freshdesk.southwest.extensions.applySDK35InsetsListener
 import com.freshdesk.southwest.ui.theme.SouthWestTheme
 import com.freshdesk.southwest.utils.TicketFormJsonParser
 import com.freshdesk.southwest.utils.toast
+import com.freshworks.sdk.freshdesk.FreshdeskSDK
 
 class TicketFormActivity : ComponentActivity() {
 
@@ -108,12 +109,10 @@ class TicketFormActivity : ComponentActivity() {
                 formIdOptional = true,
             ),
         ) { formId, _ ->
-            val parsedFormId = formId.toIntOrNull()
-            if (formId.isNotEmpty() && parsedFormId == null) {
-                toast(INVALID_FORM_ID)
-                return@TicketFormAction
-            }
-//            FreshdeskSDK.openTicketForm(this@TicketFormActivity, parsedFormId)
+            FreshdeskSDK.openTicketForm(
+                this@TicketFormActivity,
+                formId.ifBlank { null },
+            )
             toast(actionSent(OPEN_TICKET_FORM))
         }
     }
@@ -127,10 +126,8 @@ class TicketFormActivity : ComponentActivity() {
                 positiveText = CLEAR,
             ),
         ) { formId, _ ->
-            toast("Under development")
-//            val parsedFormId = parseRequiredFormId(formId) ?: return@TicketFormAction
-//            FreshdeskSDK.clearTicketForm(this@TicketFormActivity, parsedFormId)
-//            toast(actionSent(CLEAR_TICKET_FORM))
+            FreshdeskSDK.clearTicketForm(this@TicketFormActivity, formId)
+            toast(actionSent(CLEAR_TICKET_FORM))
         }
     }
 
@@ -147,15 +144,13 @@ class TicketFormActivity : ComponentActivity() {
                 description = PREFILL_DESCRIPTION,
             ),
         ) { formId, payload ->
-            val parsedFormId = parseRequiredFormId(formId) ?: return@TicketFormAction
             val fieldValues = TicketFormJsonParser.parseFieldValues(payload)
             if (fieldValues.isNullOrEmpty()) {
                 toast(INVALID_JSON)
                 return@TicketFormAction
             }
-            toast("Under development")
-//            FreshdeskSDK.prefillTicketForm(this@TicketFormActivity, parsedFormId, fieldValues)
-//            toast(actionSent(PREFILL_TICKET_FORM))
+            FreshdeskSDK.prefillTicketForm(this@TicketFormActivity, formId, fieldValues)
+            toast(actionSent(PREFILL_TICKET_FORM))
         }
     }
 
@@ -172,9 +167,9 @@ class TicketFormActivity : ComponentActivity() {
                 description = FIELDS_LIST_DESCRIPTION,
             ),
         ) { formId, payload ->
-//            invokeFieldsListApi(formId, payload, DISABLE_TICKET_FORM_FIELDS) { id, fields ->
-//                FreshdeskSDK.disableTicketFormFields(this@TicketFormActivity, id, fields)
-//            }
+            invokeFieldsListApi(formId, payload, DISABLE_TICKET_FORM_FIELDS) { id, fields ->
+                FreshdeskSDK.disableTicketFormFields(this@TicketFormActivity, id, fields)
+            }
         }
     }
 
@@ -191,9 +186,9 @@ class TicketFormActivity : ComponentActivity() {
                 description = FIELDS_LIST_DESCRIPTION,
             ),
         ) { formId, payload ->
-//            invokeFieldsListApi(formId, payload, HIDE_TICKET_FORM_FIELDS) { id, fields ->
-//                FreshdeskSDK.hideTicketFormFields(this@TicketFormActivity, id, fields)
-//            }
+            invokeFieldsListApi(formId, payload, HIDE_TICKET_FORM_FIELDS) { id, fields ->
+                FreshdeskSDK.hideTicketFormFields(this@TicketFormActivity, id, fields)
+            }
         }
     }
 
@@ -210,44 +205,29 @@ class TicketFormActivity : ComponentActivity() {
                 description = CHOICES_DESCRIPTION,
             ),
         ) { formId, payload ->
-            toast("Under development")
-//            val parsedFormId = parseRequiredFormId(formId) ?: return@TicketFormAction
-//            val choices = TicketFormJsonParser.parseChoices(payload)
-//            if (choices.isNullOrEmpty()) {
-//                toast(INVALID_JSON)
-//                return@TicketFormAction
-//            }
-//            FreshdeskSDK.hideTicketFormChoiceFields(this@TicketFormActivity, parsedFormId, choices)
-//            toast(actionSent(HIDE_TICKET_FIELD_CHOICES))
+            val choices = TicketFormJsonParser.parseChoices(payload)
+            if (choices.isNullOrEmpty()) {
+                toast(INVALID_JSON)
+                return@TicketFormAction
+            }
+            FreshdeskSDK.hideTicketFormChoiceFields(this@TicketFormActivity, formId, choices)
+            toast(actionSent(HIDE_TICKET_FIELD_CHOICES))
         }
     }
 
-//    private fun invokeFieldsListApi(
-//        formId: String,
-//        payload: String,
-//        actionName: String,
-//        invoke: (formId: Int, fields: List<String>) -> Unit,
-//    ) {
-//        val parsedFormId = parseRequiredFormId(formId) ?: return
-//        val fields = TicketFormJsonParser.parseFieldNames(payload)
-//        if (fields.isNullOrEmpty()) {
-//            toast(INVALID_JSON)
-//            return
-//        }
-//        toast("Under development")
-//        invoke(parsedFormId, fields)
-//        toast(actionSent(actionName))
-//    }
-
-    private fun parseRequiredFormId(formId: String): Int? {
-        if (formId.isBlank()) {
-            toast(INVALID_FORM_ID)
-            return null
+    private fun invokeFieldsListApi(
+        formId: String,
+        payload: String,
+        actionName: String,
+        invoke: (formId: String, fields: List<String>) -> Unit,
+    ) {
+        val fields = TicketFormJsonParser.parseFieldNames(payload)
+        if (fields.isNullOrEmpty()) {
+            toast(INVALID_JSON)
+            return
         }
-        return formId.toIntOrNull() ?: run {
-            toast(INVALID_FORM_ID)
-            null
-        }
+        invoke(formId, fields)
+        toast(actionSent(actionName))
     }
 
     @Composable
@@ -264,6 +244,10 @@ class TicketFormActivity : ComponentActivity() {
             TicketFormDialog(
                 config = dialogConfig,
                 onConfirmed = { formId, payload ->
+                    if (!dialogConfig.formIdOptional && formId.isBlank()) {
+                        toast(INVALID_FORM_ID)
+                        return@TicketFormDialog
+                    }
                     openDialog.value = false
                     onSubmit(formId, payload)
                 },
@@ -275,8 +259,8 @@ class TicketFormActivity : ComponentActivity() {
     private fun actionSent(action: String) = "$action sent"
 
     companion object {
-        const val SCREEN_TITLE = "Ticket Form Test"
-        const val MENU_LABEL = "Ticket Form Test"
+        const val SCREEN_TITLE = "Ticket Forms"
+        const val MENU_LABEL = "Ticket Forms"
 
         private const val OPEN_TICKET_FORM = "Open Ticket Form"
         private const val CLEAR_TICKET_FORM = "Clear Ticket Form"

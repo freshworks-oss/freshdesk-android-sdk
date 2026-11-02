@@ -1,6 +1,7 @@
 package com.freshdesk.southwest.ui.activity
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -37,17 +38,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.freshdesk.southwest.R
 import com.freshdesk.southwest.SouthWestApp
 import com.freshdesk.southwest.TAG
+import com.freshdesk.southwest.components.FieldConfig
 import com.freshdesk.southwest.components.buttons.ButtonText
 import com.freshdesk.southwest.components.dialogs.ConfigureSwitcherDialog
 import com.freshdesk.southwest.components.dialogs.ContentConfigurationDialog
 import com.freshdesk.southwest.components.dialogs.LoadAccountForm
 import com.freshdesk.southwest.components.dialogs.ProgressBarDialog
 import com.freshdesk.southwest.components.dialogs.TextFieldDialog
+import com.freshdesk.southwest.components.dialogs.TextFieldDialogFields
 import com.freshdesk.southwest.components.dialogs.UpdateAuthTokenDialog
 import com.freshdesk.southwest.components.dialogs.UpdateTicketDialog
 import com.freshdesk.southwest.components.dialogs.UpdateUserDialog
@@ -139,9 +143,8 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
             Configure()
             ResetUser()
             LoadAccount()
-//            Ticket Forms SDK commented
-//            OpenArticle()
-//            TicketForm()
+            OpenArticle()
+            TicketForm()
         }
     }
 
@@ -194,14 +197,12 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
     }
 
-    /*Ticket Forms SDK commented
     @Composable
     fun TicketForm() {
-        ButtonText(text = TicketFormTestActivity.MENU_LABEL) {
-            startActivity(Intent(this@SettingsActivity, TicketFormTestActivity::class.java))
+        ButtonText(text = TicketFormActivity.MENU_LABEL) {
+            startActivity(Intent(this@SettingsActivity, TicketFormActivity::class.java))
         }
     }
-     */
 
     @Composable
     fun OpenTopic() {
@@ -209,8 +210,10 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         if (openDialog.value) {
             TextFieldDialog(
                 config = DialogConfig(),
-                textField1 = Pair(R.string.topic_name, DataStore.getConvTopicName()),
-                textField2 = Pair(R.string.topic_id, DataStore.getConvTopicId()),
+                fields = TextFieldDialogFields(
+                    textField1 = Pair(R.string.topic_name, DataStore.getConvTopicName()),
+                    textField2 = Pair(R.string.topic_id, DataStore.getConvTopicId()),
+                ),
                 onConfirmed = {
                     openDialog.value = false
                     DataStore.setConvTopicName(it.field1)
@@ -230,18 +233,20 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
     }
 
-    /*Ticket Forms SDK commented
     @Composable
     fun OpenArticle() {
         val openDialog = rememberSaveable { mutableStateOf(false) }
         if (openDialog.value) {
             TextFieldDialog(
                 config = DialogConfig(title = R.string.open_article),
-                textField1 = Pair(R.string.article_id, "4374493"),
+                fields = TextFieldDialogFields(
+                    textField1 = Pair(R.string.article_id, ""),
+                    textField1Config = FieldConfig(keyboardType = KeyboardType.Number),
+                ),
                 onConfirmed = {
                     openDialog.value = false
-                    val articleId = it.field1.toIntOrNull()
-                    if (articleId == null) {
+                    val articleId = it.field1
+                    if (articleId.isEmpty()) {
                         toast(getString(R.string.inbound_event_invalid_input))
                     } else {
                         FreshdeskSDK.openArticle(this@SettingsActivity, articleId)
@@ -256,7 +261,6 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
             openDialog.value = true
         }
     }
-     */
 
     @Composable
     private fun ShowKnowledgeBase() {
@@ -445,8 +449,10 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
                     positiveText = R.string.send,
                     showDescription = true
                 ),
-                textField1 = Pair(R.string.event_name, DataStore.getInboundEventName()),
-                textField2 = Pair(R.string.event_value, DataStore.getInboundEventData()),
+                fields = TextFieldDialogFields(
+                    textField1 = Pair(R.string.event_name, DataStore.getInboundEventName()),
+                    textField2 = Pair(R.string.event_value, DataStore.getInboundEventData()),
+                ),
                 onConfirmed = {
                     logUserEventDialog.value = false
                     if (it.field1.isEmpty()) {

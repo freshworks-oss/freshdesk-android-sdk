@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,13 +31,12 @@ import com.freshdesk.southwest.ui.theme.SouthWestTheme
 @Composable
 fun TextFieldDialog(
     config: DialogConfig,
-    textField1: Pair<Int, String>,
-    textField2: Pair<Int, String>? = null,
+    fields: TextFieldDialogFields,
     onConfirmed: (TextFieldDialog) -> Unit,
-    onDismissed: () -> Unit
+    onDismissed: () -> Unit,
 ) {
-    val field1 = rememberSaveable { mutableStateOf(textField1.second) }
-    val field2 = rememberSaveable { mutableStateOf(textField2?.second.orEmpty()) }
+    val field1 = rememberSaveable { mutableStateOf(fields.textField1.second) }
+    val field2 = rememberSaveable { mutableStateOf(fields.textField2?.second.orEmpty()) }
     AlertDialog(
         onDismissRequest = {
         },
@@ -47,7 +47,7 @@ fun TextFieldDialog(
             )
         },
         text = {
-            TextFieldDialogForm(config, textField1, textField2, field1, field2)
+            TextFieldDialogForm(config, fields, field1, field2)
         },
         confirmButton = {
             ConfirmButton(config.positiveText) {
@@ -68,35 +68,43 @@ fun TextFieldDialog(
 @Composable
 private fun TextFieldDialogForm(
     config: DialogConfig,
-    textField1: Pair<Int, String>,
-    textField2: Pair<Int, String>?,
+    fields: TextFieldDialogFields,
     field1: MutableState<String>,
     field2: MutableState<String>,
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         FormField(
-            labelId = textField1.first,
+            labelId = fields.textField1.first,
             value = field1.value,
-            config = FieldConfig(
+            config = fields.textField1Config.copy(
                 isBlank = field1.value.isBlank(),
                 trailingIcon = { ClearButton { field1.value = "" } }
             ),
-            onValueChange = { field1.value = it }
+            onValueChange = { fields.textField1Config.filterInput(it)?.let { next -> field1.value = next } }
         )
         if (config.showDescription) {
             ShowDescription()
         }
-        textField2?.let { secondField ->
+        fields.textField2?.let { secondField ->
             FormField(
                 labelId = secondField.first,
                 value = field2.value,
-                config = FieldConfig(
+                config = fields.textField2Config.copy(
                     isBlank = field2.value.isBlank(),
                     trailingIcon = { ClearButton { field2.value = "" } }
                 ),
-                onValueChange = { field2.value = it }
+                onValueChange = { fields.textField2Config.filterInput(it)?.let { next -> field2.value = next } }
             )
         }
+    }
+}
+
+private fun FieldConfig.filterInput(value: String): String? {
+    return if (keyboardType == KeyboardType.Number) {
+        // Reject mixed input (e.g. "12-34") instead of silently becoming "1234".
+        value.takeIf { candidate -> candidate.all { it.isDigit() } }
+    } else {
+        value
     }
 }
 
@@ -115,8 +123,10 @@ fun ShowTextFieldDialog() {
     SouthWestTheme {
         TextFieldDialog(
             config = DialogConfig(R.string.open_topic, R.string.open),
-            textField1 = Pair(R.string.topic_name, ""),
-            textField2 = Pair(R.string.topic_id, ""),
+            fields = TextFieldDialogFields(
+                textField1 = Pair(R.string.topic_name, ""),
+                textField2 = Pair(R.string.topic_id, ""),
+            ),
             onConfirmed = {}
         ) {}
     }

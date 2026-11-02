@@ -18,15 +18,18 @@ import com.freshdesk.southwest.ui.activity.SOUTH_WEST
 import com.freshdesk.southwest.utils.logEvent
 import com.freshdesk.southwest.utils.logd
 import com.freshdesk.southwest.utils.toast
+import com.freshworks.logging.LogUploader
+import com.freshworks.logging.log.LogEntry
+import com.freshworks.logging.log.LogSession
+import com.freshworks.logging.sampling.Logger
 import com.freshworks.sdk.freshdesk.FreshdeskSDK
 import com.freshworks.sdk.freshdesk.FreshdeskSDK.setFreshdeskUserInteractionListener
-import com.freshworks.sdk.freshdesk.HostPlatform
 import com.freshworks.sdk.freshdesk.backend.model.User
 import com.freshworks.sdk.freshdesk.core.FreshdeskWebviewListener
 import com.freshworks.sdk.freshdesk.data.SDKConfig
 import com.freshworks.sdk.freshdesk.events.SDKEventID
-import com.freshworks.sdk.freshdesk.handlers.FreshdeskUserInteractionListener
 import com.freshworks.sdk.freshdesk.events.UserState.Companion.AUTH_EXPIRED
+import com.freshworks.sdk.freshdesk.handlers.FreshdeskUserInteractionListener
 import com.freshworks.sdk.freshdesk.notification.NotificationConfig
 import com.freshworks.sdk.freshdesk.utils.changeLocale
 
@@ -41,11 +44,13 @@ class SouthWestApp : Application(), FreshdeskUserInteractionListener {
     val userState: LiveData<String> = _userState
 
     val customLocale = "ar"
+    private lateinit var logger: Logger
 
     override fun onCreate() {
         super.onCreate()
         sharedPreferences = this.getSharedPreferences(SOUTH_WEST, MODE_PRIVATE)
         setUpFreshdeskSDK()
+        setupLogging()
         setWebViewListener()
         registerBroadcastReceiver()
         setFreshdeskUserInteractionListener(this)
@@ -55,25 +60,29 @@ class SouthWestApp : Application(), FreshdeskUserInteractionListener {
         _userState.value = ""
     }
 
-    private fun setUpFreshdeskSDK() {
-        //To get your credentials refer to the below link
-        //https://github.com/freshworks/freshdesk-android-sdk?tab=readme-ov-file#sdk-initialization
-        initializeSDK(
-            SDKConfig(
-                token = "<YOUR SDK TOKEN>",
-                host = "<YOUR HOST NAME>",
-                sdkID = "<YOUR SDK ID>",
-                hostPlatform = HostPlatform.ANDROID
-            ),
-            this
+    private fun setupLogging() {
+        logger = Logger.getNewInstance(
+            applicationContext,
+            "Southwest",
+            object : LogUploader {
+                override suspend fun uploadSessions(sessions: List<LogSession>): Boolean {
+                    return true
+                }
+
+                override suspend fun uploadLogs(logs: List<LogEntry>): Boolean {
+                    return true
+                }
+            }
         )
-        FreshdeskSDK.setNotificationConfig(
-            NotificationConfig(
-                soundEnabled = true,
-                smallIconResId = R.drawable.ic_southwest_notification,
-                largeIconResId = R.drawable.ic_southwest_notification,
-                importance = NotificationManager.IMPORTANCE_HIGH
-            )
+        logger.applyDefaultRule()
+        logger.startSampling(mapOf())
+        logger.scheduleUpload(this)
+    }
+
+    private fun setUpFreshdeskSDK() {
+        initializeSDK(
+            DataStore.getSelectedAccount(),
+            this
         )
     }
 
@@ -198,6 +207,14 @@ class SouthWestApp : Application(), FreshdeskUserInteractionListener {
                 )
             ) {
                 Log.d(TAG, "SDK initialization complete")
+                FreshdeskSDK.setNotificationConfig(
+                    NotificationConfig(
+                        soundEnabled = true,
+                        smallIconResId = R.drawable.ic_southwest_notification,
+                        largeIconResId = R.drawable.ic_southwest_notification,
+                        importance = NotificationManager.IMPORTANCE_HIGH
+                    )
+                )
             }
         }
     }

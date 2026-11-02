@@ -40,7 +40,7 @@ fun FormField(
             },
             label = { Text(text = stringResource(id = labelId)) },
             keyboardOptions = KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Text
+                keyboardType = config.keyboardType
             ),
             supportingText = {
                 if (error.value || (config.isBlank && config.isRequired)) {
@@ -79,7 +79,7 @@ fun MultiLineFormField(
             },
             label = { Text(text = stringResource(id = labelId)) },
             keyboardOptions = KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Text
+                keyboardType = config.keyboardType
             ),
             placeholder = {
                 if (value.isEmpty()) {
@@ -110,6 +110,7 @@ data class FieldConfig(
     val isReadOnly: Boolean = false,
     val isBlank: Boolean = false,
     val isEnabled: Boolean = true,
+    val keyboardType: KeyboardType = KeyboardType.Text,
     val trailingIcon: @Composable (() -> Unit)? = null,
 )
 
