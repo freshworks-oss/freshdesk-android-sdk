@@ -2,7 +2,7 @@
 
 > **Audience:** Android app developers currently integrating the **Freshchat Android SDK** (`com.github.freshworks:freshchat-android`) who are moving to the **Freshdesk Android SDK** (`com.freshworks.sdk:freshdesk`).
 >
-> **Source of truth for this document:** Freshchat Android SDK `6.5.10` and Freshdesk Android SDK `2.2.4`. Code samples are **Kotlin**.
+> **Source of truth for this document:** Freshchat Android SDK `6.5.10` and Freshdesk Android SDK `2.4.0`. Code samples are **Kotlin**.
 
 ---
 
@@ -16,7 +16,7 @@ The Freshdesk Android SDK is **not** a drop-in replacement for Freshchat. It is 
 | 2 | **Chat channels → tickets and topics.** Freshchat's model was channels/conversations filtered by tags. Freshdesk's model is topics + tickets + knowledge base. | Anything built on tags, channel IDs, parallel conversations or conversation reference IDs has no direct equivalent. |
 | 3 | **Init is asynchronous and call order matters.** Freshchat's `init()` returned a `boolean` synchronously. Freshdesk's `initialize()` takes a readiness callback, and most SDK calls made before `initialize` runs — or while the device is offline — are ignored rather than retried. | Call `initialize` first and make your other SDK calls from its callback (or after it). A few methods, such as the version getters and listener setters, can be called at any time — see [§5.2](#52-after--freshdesk). |
 | 4 | **Identity is JWT-first.** Freshchat had `identifyUser(externalId, restoreId)` plus a JWT mode. Freshdesk has no `externalId`/`restoreId` API — identity lives in a server-signed JWT. | If JWT enforcement is on, `setUserProperties` / `setTicketProperties` are silently ignored. |
-| 5 | **No programmatic message sending.** | `Freshchat.sendMessage(...)` has no equivalent. The end user must type. |
+| 5 | **Messages can be drafted or sent, but only into a topic.** | `Freshchat.sendMessage(...)` maps to `messageToTopic(...)`, which pre-fills the composer by default and only sends when you pass `isDraft = false`. See [§11.1](#111-sendmessage--messagetotopic). |
 | 6 | **Custom fields must be pre-whitelisted in the portal.** | Keys passed to `setUserProperties` / `setTicketProperties` that are not configured as Contact Fields / Ticket Fields on the linked widget are dropped. |
 | 7 | **minSdk rises from 23 to 26.** | If you still support API 23–25, you cannot migrate without dropping those devices. |
 
@@ -41,7 +41,7 @@ Complete these **before** touching app code.
 
 ## 3. API mapping index
 
-One row per capability. `NA` means no Freshdesk equivalent exists in `2.2.4`. Detailed before/after code follows in [§5](#5-initialization) onward.
+One row per capability. `NA` means no Freshdesk equivalent exists in `2.4.0`. Detailed before/after code follows in [§5](#5-initialization) onward.
 
 | # | Capability | Freshchat Android | Freshdesk Android | Status |
 |---|-----------|-------------------|-------------------|--------|
@@ -72,9 +72,9 @@ One row per capability. `NA` means no Freshdesk equivalent exists in `2.2.4`. De
 | 25 | Deeplink into channel/FAQ | `openFreshchatDeeplink(context, url)` | NA | Gap — [§6.5](#65-deeplinks-have-no-equivalent) |
 | 26 | Dismiss SDK screens | NA | `dismissFreshdeskViews()` | New |
 | 27 | Conversation banner message | `setConversationBannerMessage(context, msg)` (deprecated) | NA | Gap |
-| 28 | Send message programmatically | `Freshchat.sendMessage(context, FreshchatMessage)` | NA | Gap — [§11.1](#111-sendmessage-has-no-equivalent) |
-| 29 | Bot variables | `setBotVariables(vars, botSpecificVars)` | NA | Gap — [§11.2](#112-bot-variables-have-no-equivalent) |
-| 30 | Unread count (pull) | `getUnreadCountAsync(callback)` | NA — event only | Gap — [§10](#10-unread-count) |
+| 28 | Send message programmatically | `Freshchat.sendMessage(context, FreshchatMessage)` | `messageToTopic(context, topicName \| topicId, message, isDraft = true)` — draft by default, tag not supported | Changed — [§11.1](#111-sendmessage--messagetotopic) |
+| 29 | Bot variables | `setBotVariables(vars, botSpecificVars)` | `setBotVariables(botVariables)` — single map, bot-specific values under `fd_override_bot_property` | Changed — [§11.2](#112-bot-variables) |
+| 30 | Unread count (pull) | `getUnreadCountAsync(callback)` | `getUnreadCount(): Int` — synchronous, last known value | Changed — [§10](#10-unread-count) |
 | 31 | Unread count (push) | `FRESHCHAT_UNREAD_MESSAGE_COUNT_CHANGED` broadcast | `SDKEventID.UNREAD_COUNT` broadcast, `Int` extra | Changed |
 | 32 | Unread count by tag | `getUnreadCountAsync(callback, tagsList)` | NA | Gap |
 | 33 | Unread count by reference ID | `getUnreadCountAsyncWithReferenceId(cb, topic, refId)` | NA | Gap |
@@ -97,6 +97,8 @@ One row per capability. `NA` means no Freshdesk equivalent exists in `2.2.4`. De
 | 50 | String localization | Override `freshchat_*` string resources | `ContentConfiguration` (code-first string overrides) | Changed — [§16](#16-localization) |
 | 51 | Agent profile click redirect | `setAgentProfileClickRedirectionUri(uri)` | NA | Gap |
 | 52 | Content/text overrides | NA | `ContentConfiguration` at init or `setContentConfiguration(…)` | New — [§16.2](#162-contentconfiguration-new-capability) |
+| 53 | Open a knowledge base article | NA (FAQ deeplink only) | `openArticle(context, articleId)` | New — [§6.7](#67-open-a-single-article--new) |
+| 54 | Ticket forms (open, prefill, hide/disable fields, hide choices, clear) | NA (no ticketing) | `openTicketForm`, `prefillTicketForm`, `disableTicketFormFields`, `hideTicketFormFields`, `hideTicketFormChoiceFields`, `clearTicketForm` | New — [§6.8](#68-ticket-forms--new) |
 
 ---
 
@@ -144,7 +146,7 @@ dependencies {
 
 ### 4.3 Requirements comparison
 
-| Item | Freshchat `6.5.10` | Freshdesk `2.2.4` |
+| Item | Freshchat `6.5.10` | Freshdesk `2.4.0` |
 |------|--------------------|-------------------|
 | Distribution | JitPack | Maven Central |
 | `minSdk` | 23 | **26** |
@@ -152,7 +154,7 @@ dependencies {
 | Java/Kotlin target | 1.8 | 1.8 |
 | Permissions merged by SDK | `INTERNET`, `ACCESS_NETWORK_STATE` | `INTERNET`, `ACCESS_NETWORK_STATE`, `CHANGE_NETWORK_STATE` |
 | SDK Activities merged | 13 native Activities | 1 (`SDKWebViewActivity`) |
-| FileProvider | App must supply authority via `freshchat_file_provider_authority` string | SDK declares `${applicationId}.fileProvider` itself |
+| FileProvider | App must supply authority via `freshchat_file_provider_authority` string | SDK declares its own `FreshdeskFileProvider` (`${applicationId}.freshdesk.fileprovider`) |
 | App-side manifest work | FileProvider + `FirebaseMessagingService` | `POST_NOTIFICATIONS` (API 33+) + `FirebaseMessagingService` |
 
 ### 4.4 Manifest merge conflicts to watch for
@@ -163,9 +165,13 @@ The Freshdesk SDK manifest sets attributes on `<application>` that your app may 
 - `android:fullBackupContent="@xml/backup_rules"`
 - `android:enableOnBackInvokedCallback="true"`
 
-It also declares a `FileProvider` with authority `${applicationId}.fileProvider`.
+It also declares its own `FileProvider` subclass (`FreshdeskFileProvider`, authority `${applicationId}.freshdesk.fileprovider`). This does not collide with a `FileProvider` your app declares, so no action is needed for it.
 
-If your app declares any of these, resolve with `tools:replace` on `<application>`, and rename your own FileProvider authority if it collides.
+If your app declares any of the `<application>` attributes above, resolve with `tools:replace` on `<application>`.
+
+### 4.4a Automatic cleanup of old Freshchat data
+
+Once the backend reports the account migration as complete (`unifiedMigrationCompleted` in the SDK config), the Freshdesk SDK attempts to remove the data the Freshchat SDK left on the device (its preferences file, `freshchat.db`, `freshchat/` file and cache folders, pending retry alarm and notification channels). The cleanup is **one-time and best effort**: each step is attempted independently, failures are only logged, and a file that fails to delete is **not retried**, so it may remain on the device. This requires Freshdesk Android **2.4.0 or later**; earlier versions, including 2.3.1, do not perform the cleanup. No code is needed in the app. Do not call `Freshchat.resetUser` for this purpose after removing the Freshchat dependency.
 
 ### 4.5 Import changes
 
@@ -274,7 +280,9 @@ class MyApp : Application() {
 >
 > **Safe to call at any time**, including before `initialize`: `getSDKVersionName` / `getSDKVersionCode` / `getSDKBuildID`, `setWebViewListener` / `getWebViewListener`, and `setFreshdeskUserInteractionListener` / `getFreshdeskUserInteractionListener`. `isFreshdeskSDKNotification` needs `initialize` to have been called (it returns `false` otherwise) but works offline.
 >
-> **Call only after `initialize`** — everything else: `openSupport`, `openTopic`, `openKnowledgeBase`, `getUser`, `resetUser`, `setUserProperties`, `authenticateAndUpdate`, `setTicketProperties`, `setContentConfiguration`, `setPushRegistrationToken`, `handleFCMNotification`, `setNotificationConfig`, `setLinkHandler`, `trackEvent`, `dismissFreshdeskViews`.
+> **Call only after `initialize`** — everything else: `openSupport`, `openTopic`, `messageToTopic`, `openKnowledgeBase`, `openArticle`, the ticket-form methods (`openTicketForm`, `prefillTicketForm`, `disableTicketFormFields`, `hideTicketFormFields`, `hideTicketFormChoiceFields`, `clearTicketForm`), `getUser`, `resetUser`, `setUserProperties`, `authenticateAndUpdate`, `setTicketProperties`, `setContentConfiguration`, `setBotVariables`, `getUnreadCount` (returns `0` before init), `setPushRegistrationToken`, `handleFCMNotification`, `setNotificationConfig`, `setLinkHandler`, `trackEvent`, `dismissFreshdeskViews`.
+>
+> UI-opening methods (`openSupport`, `openTopic`, `messageToTopic`, `openKnowledgeBase`, `openArticle`, `openTicketForm`) must not be called until the `initialize` callback has run. Make non-UI calls such as `setBotVariables` from the `initialize` callback too: a call made immediately after `initialize()` returns can be dropped (logged, not retried), because the SDK has not finished starting yet.
 >
 > Practical rule: call `initialize` first, and either make the calls in the second list from within `initializedCallback`, or only make them once a flag set inside that callback is true. Persist anything that can arrive out of order (notably the FCM token, see [§12.1](#121-token-registration)) so you can re-submit it once the SDK is ready.
 
@@ -373,6 +381,7 @@ FreshdeskSDK.openTopic(
 
 Notes:
 
+- To open a topic **and** pre-fill or send a message, use [`messageToTopic`](#111-sendmessage--messagetotopic).
 - Both `topicName` and `topicId` are **nullable but have no default values** — pass both explicitly (one may be `null`).
 - To carry the order/reference context an agent needs, use `setTicketProperties` before `openTopic`:
 
@@ -390,9 +399,9 @@ This is the recommended migration path for reference-ID-based parallel conversat
 Freshchat.openFreshchatDeeplink(this, "freshchat://channels?id=192")
 ```
 
-`NA`. There is no Freshdesk API to deep-link to a specific channel, conversation or article.
+`NA`. There is no Freshdesk API to deep-link to a specific channel or conversation. Articles can be opened by id with `openArticle` ([§6.7](#67-open-a-single-article--new)).
 
-**Workaround:** route your own deeplinks to `openSupport(context)` or `openTopic(context, topicName, topicId)` and accept the coarser landing point. If you were deriving the deeplink from an intercepted notification (see [§12.4](#124-notification-interception-has-no-equivalent)), that entire flow needs redesigning.
+**Workaround:** route your own deeplinks to `openSupport(context)`, `openTopic(context, topicName, topicId)`, or — for a knowledge base article — `openArticle(context, articleId)` ([§6.7](#67-open-a-single-article--new)), and accept the coarser landing point for anything else. If you were deriving the deeplink from an intercepted notification (see [§12.4](#124-notification-interception-has-no-equivalent)), that entire flow needs redesigning.
 
 ### 6.6 Dismissing SDK screens — new
 
@@ -401,6 +410,51 @@ FreshdeskSDK.dismissFreshdeskViews()
 ```
 
 No Freshchat equivalent. Useful before logout. It only works once the SDK is ready (after `initializedCallback` has run); before that, it does nothing.
+
+### 6.7 Open a single article — new
+
+```kotlin
+FreshdeskSDK.openArticle(context = this, articleId = "4374493")
+```
+
+Opens one knowledge base article directly by its Freshdesk article id. Freshchat had no direct API for this (only FAQ deeplinks, see [§6.5](#65-deeplinks-have-no-equivalent)). Use an **Activity** context and call it only after the `initialize` callback has run.
+
+> When **JWT enforcement** is enabled on the widget, `openArticle` is a no-op, the same restriction as `setUserProperties`. Authenticating with JWT does not lift it.
+
+### 6.8 Ticket forms — new
+
+Freshchat had no ticketing, so there is nothing to migrate from; adopt these only if you want in-app ticket forms. Each method maps to an `fdWidget.ticket(...)` command in the embedded widget.
+
+| Method | Purpose |
+|--------|---------|
+| `openTicketForm(context, formId = null)` | Open the default form, or a specific form by id |
+| `prefillTicketForm(context, formId, fieldValues)` | Prefill fields (`subject`, `description`, `priority`, `customFields`, …); `formId` is merged in automatically |
+| `disableTicketFormFields(context, formId, fieldNames)` | Make fields read-only |
+| `hideTicketFormFields(context, formId, fieldNames)` | Hide fields |
+| `hideTicketFormChoiceFields(context, formId, choices)` | Hide options inside dropdown/choice fields |
+| `clearTicketForm(context, formId)` | Reset a form |
+
+```kotlin
+FreshdeskSDK.prefillTicketForm(
+    context = this,
+    formId = "24243",
+    fieldValues = mapOf(
+        "subject" to "Damaged order",
+        "priority" to 1,
+        "customFields" to mapOf("cf_reference_number" to 223)
+    )
+)
+FreshdeskSDK.hideTicketFormFields(this, "24243", listOf("custom_fields.cf_parent"))
+FreshdeskSDK.openTicketForm(this, formId = "24243")
+```
+
+Notes:
+
+- Configure prefill, hide and disable calls **before** `openTicketForm` so the user sees the final state immediately.
+- Form ids come from **Admin → Ticket Forms** in the Freshdesk portal. Custom fields use the `cf_*` names; in `disableTicketFormFields` / `hideTicketFormFields`, prefix them with `custom_fields.`.
+- Requires an active network connection and the `initialize` callback to have run. Use an **Activity** context for `openTicketForm`.
+- When **JWT enforcement** is enabled, all ticket-form APIs are no-ops.
+- Form labels can be customised through `ContentConfiguration.headers.ticketForm` ([§16.2](#162-contentconfiguration-new-capability)).
 
 ---
 
@@ -705,7 +759,10 @@ Freshchat.getInstance(this).getUnreadCountAsyncWithReferenceId(callback, "orders
 ```
 
 ```kotlin
-// After — push only
+// After — pull: last known count, synchronous, no callback
+badge.count = FreshdeskSDK.getUnreadCount()
+
+// After — push: keep the badge live
 private val unreadReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action == SDKEventID.UNREAD_COUNT) {
@@ -723,20 +780,25 @@ LocalBroadcastManager.getInstance(this).registerReceiver(
 
 | | Freshchat | Freshdesk |
 |---|---|---|
-| Pull API | `getUnreadCountAsync(callback)` | **NA** |
+| Pull API | `getUnreadCountAsync(callback)` | `getUnreadCount(): Int` — synchronous, returns the last count the widget reported |
 | Push event | `FRESHCHAT_UNREAD_MESSAGE_COUNT_CHANGED` (no extras — you then called the getter) | `SDKEventID.UNREAD_COUNT`, `Int` extra under the same key |
 | Filter by tag | `getUnreadCountAsync(cb, tagsList)` | **NA** |
 | Filter by reference ID | `getUnreadCountAsyncWithReferenceId(cb, topic, refId)` | **NA** |
 
-**Workaround for the missing pull API:** register an app-wide receiver in `Application.onCreate()`, persist the latest count (e.g. `SharedPreferences` or a `StateFlow` in a singleton), and read your own cached value wherever you previously called `getUnreadCountAsync`. This is a required change if any screen reads the badge count on demand.
+Behaviour of `getUnreadCount()` to plan for:
+
+- The value is held **in memory**. It is `0` until the widget reports a count after the app process starts, and `0` if the SDK is not initialized yet.
+- `resetUser` resets it to `0`.
+- It cannot fail and has no status/callback, so drop the `FreshchatCallbackStatus` handling.
+- Because it is only as fresh as the last widget report, keep the `UNREAD_COUNT` receiver registered if the badge must update while the screen is visible; use `getUnreadCount()` to draw the badge immediately when a screen appears.
 
 Tag-scoped and reference-scoped counts have **no workaround** — they depend on Freshchat's channel/tag model.
 
 ---
 
-## 11. Messaging and bot APIs with no equivalent
+## 11. Messaging and bot APIs
 
-### 11.1 `sendMessage` has no equivalent
+### 11.1 `sendMessage` → `messageToTopic`
 
 ```kotlin
 // Before
@@ -746,20 +808,34 @@ val message = FreshchatMessage()
 Freshchat.sendMessage(this, message)
 ```
 
-`NA`. There is no Freshdesk API to programmatically pre-fill or send a message. The end user must type after the UI opens.
+```kotlin
+// After — saved as a draft in the composer (default); the user reviews and sends
+FreshdeskSDK.messageToTopic(this, topicName = "Order Support", message = "Where is my package?")
 
-**Workaround:** move the information you were injecting into a message into `setTicketProperties(...)` so the agent still receives the context, then open the relevant topic:
+// After — sent immediately
+FreshdeskSDK.messageToTopic(this, topicId = 12345L, message = "Where is my package?", isDraft = false)
+```
+
+`messageToTopic` has two overloads, one addressing the topic by `topicName: String` and one by `topicId: Long`. It opens the SDK screen on that topic (use an **Activity** context, after the `initialize` callback) and places the message in the composer.
+
+Differences from `sendMessage` to plan for:
+
+- **`isDraft` defaults to `true`.** Unlike `sendMessage`, nothing is sent unless you pass `isDraft = false`. Any code that relied on the message being delivered must pass `isDraft = false` explicitly.
+- **It opens the UI.** `sendMessage` could send silently in the background; `messageToTopic` always shows the topic screen.
+- **A topic is required.** There is no `setTag`; map each Freshchat tag/channel to a Freshdesk topic name or id.
+
+To give agents context without putting it in the message text, combine it with `setTicketProperties`:
 
 ```kotlin
 FreshdeskSDK.setTicketProperties(
     mapOf("order_id" to "ORD-123", "issue" to "package_not_delivered")
 )
-FreshdeskSDK.openTopic(this, topicName = "Order Support", topicId = null)
+FreshdeskSDK.messageToTopic(this, topicName = "Order Support", message = "Where is my package?", isDraft = false)
 ```
 
-Note the behavioural difference: ticket properties reach Freshdesk only after the user sends their first message, whereas `sendMessage` created the conversation immediately with no user action.
+Ticket properties reach Freshdesk only after the user (or `isDraft = false`) sends a message.
 
-### 11.2 Bot variables have no equivalent
+### 11.2 Bot variables
 
 ```kotlin
 // Before
@@ -769,9 +845,23 @@ Freshchat.getInstance(this).setBotVariables(
 )
 ```
 
-`NA`. There is no API to pass common or bot-specific variables.
+```kotlin
+// After — one map; bot-specific overrides go under fd_override_bot_property
+FreshdeskSDK.setBotVariables(
+    mapOf(
+        "userTier" to "gold",
+        "fd_override_bot_property" to mapOf(
+            "bot-alias" to mapOf("sku" to "ABC")
+        )
+    )
+)
+FreshdeskSDK.openSupport(this)
+```
 
-**Workaround:** pass the same values as user properties (`setUserProperties`) or ticket properties (`setTicketProperties`), whitelisted in the portal, and reference them from bot/automation rules server-side. Confirm with your Freshdesk admin that the bot flows you depend on can read those fields.
+- The Freshchat **second parameter (`botSpecificVars`) does not exist**. Merge those entries into the single map under the reserved key `fd_override_bot_property`, as above. Property names must match those configured in your bot builder.
+- Use primitives (`String`, `Int`, `Long`, `Double`, `Float`, `Boolean`) for top-level values.
+- Call it before `openSupport` / `openTopic`, **from the `initialize` callback**. A call made immediately after `initialize()` returns can be dropped (logged, not retried), so the bot would open without the variables.
+- Values are **not persisted across sessions** — set them each time before opening support.
 
 ### 11.3 Other removed customization APIs
 
@@ -1106,6 +1196,8 @@ class SupportActivity : AppCompatActivity(), FreshDeskSDKLinkHandler {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Always record the visible Activity so initializedCallback can register it later.
+        currentSupportActivity = this
         // sdkReady is the flag set in initializedCallback (see [§5.2](#52-after--freshdesk)).
         // If it is still false, initializedCallback registers the handler instead (below).
         if (sdkReady) FreshdeskSDK.setLinkHandler(this)
@@ -1121,10 +1213,14 @@ class SupportActivity : AppCompatActivity(), FreshDeskSDKLinkHandler {
     }
 
     override fun onDestroy() {
+        if (currentSupportActivity === this) currentSupportActivity = null
         FreshdeskSDK.setLinkHandler(null)
         super.onDestroy()
     }
 }
+
+// Cleared in onDestroy above, so it never keeps a destroyed Activity alive.
+var currentSupportActivity: SupportActivity? = null
 
 // In the initializedCallback passed to FreshdeskSDK.initialize(...):
 initializedCallback = {
@@ -1344,7 +1440,7 @@ Set `SDKConfig.debugMode = BuildConfig.DEBUG` for verbose logging in development
 - [ ] Configure the FCM credential in the portal
 - [ ] Configure widget appearance to approximate your Freshchat theme
 - [ ] Confirm `minSdk 26` is acceptable for your install base
-- [ ] Review the gap list ([§6.3](#63-faqoptions-has-no-equivalent), [§6.4](#64-tag-filtering-and-parallel-conversations-have-no-equivalent), [§6.5](#65-deeplinks-have-no-equivalent), [§10](#10-unread-count), [§11](#11-messaging-and-bot-apis-with-no-equivalent), [§12.4](#124-notification-interception-has-no-equivalent), [§14.4](#144-freshchat-events-with-no-freshdesk-equivalent), [§17](#17-theming-and-appearance)) with product and design and get sign-off on what is being lost
+- [ ] Review the gap list ([§6.3](#63-faqoptions-has-no-equivalent), [§6.4](#64-tag-filtering-and-parallel-conversations-have-no-equivalent), [§6.5](#65-deeplinks-have-no-equivalent), [§10](#10-unread-count) (tag/reference counts only), [§11.3](#113-other-removed-customization-apis), [§12.4](#124-notification-interception-has-no-equivalent), [§14.4](#144-freshchat-events-with-no-freshdesk-equivalent), [§17](#17-theming-and-appearance)) with product and design and get sign-off on what is being lost
 
 **Phase 2 — Project setup**
 
@@ -1353,7 +1449,6 @@ Set `SDKConfig.debugMode = BuildConfig.DEBUG` for verbose logging in development
 - [ ] Add `mavenCentral()` and `com.freshworks.sdk:freshdesk:<latest-version>`
 - [ ] Raise `minSdk` to 26
 - [ ] Resolve `<application>` manifest merge conflicts (`dataExtractionRules`, `fullBackupContent`, `enableOnBackInvokedCallback`)
-- [ ] Rename your FileProvider authority if it collides with `${applicationId}.fileProvider`
 - [ ] Add `POST_NOTIFICATIONS` for API 33+
 - [ ] Delete `freshchat_*` string resource overrides
 - [ ] Delete `Theme.Freshchat.*` overrides and unused `freshchat*` drawables
@@ -1372,12 +1467,14 @@ Set `SDKConfig.debugMode = BuildConfig.DEBUG` for verbose logging in development
 - [ ] Replace `resetUser(context)` with `resetUser(onSuccess, onFailure)`; if it fails, keep support blocked and retry until it succeeds
 - [ ] Replace `setUser(jwt)` / `restoreUser(jwt)` with `SDKConfig.jwt` + `authenticateAndUpdate(jwt)`
 - [ ] Replace `getUserIdTokenStatus()` polling with a cached `USER_STATE_CHANGE` receiver
-- [ ] Replace `getUnreadCountAsync` polling with a cached `UNREAD_COUNT` receiver
+- [ ] Replace `getUnreadCountAsync` calls with `getUnreadCount()` plus an `UNREAD_COUNT` receiver; drop tag/reference-ID variants
 - [ ] Replace push detection/handling with the `remoteMessage.data` variants
 - [ ] Replace the `FRESHCHAT_EVENTS` receiver with per-action `SDKEventID` receivers
 - [ ] Rewrite `setCustomLinkHandler` as `setLinkHandler` with a default branch that opens unmatched URLs
 - [ ] Rename the user-interaction and webview listeners; drop `onUserLeaveHint` usage
-- [ ] Convert `setBotVariables` and `sendMessage` payloads into user/ticket properties
+- [ ] Merge `setBotVariables(vars, botVars)` into the single-map `setBotVariables`, nesting bot-specific values under `fd_override_bot_property`
+- [ ] Replace `sendMessage` with `messageToTopic` (note `isDraft` defaults to `true`; pass `false` to send) and map tags to topics
+- [ ] Optionally adopt `openArticle` and the ticket-form APIs (§6.7, §6.8)
 - [ ] Add `ContentConfiguration` if you need string overrides
 - [ ] Remove all `MethodNotAllowedException` / `JwtException` / `FreshchatCallbackStatus` handling
 
@@ -1387,7 +1484,8 @@ Set `SDKConfig.debugMode = BuildConfig.DEBUG` for verbose logging in development
 - [ ] Verify UI entry points only fire after the init callback
 - [ ] Verify custom user and ticket properties actually land in Freshdesk (whitelisting check)
 - [ ] Verify push end to end: token registration, foreground and background delivery, tap navigation
-- [ ] Verify the unread badge updates from the broadcast
+- [ ] Verify the unread badge draws from `getUnreadCount()` on screen load and updates from the broadcast
+- [ ] Verify `messageToTopic` drafts vs sends as intended
 - [ ] Verify the full JWT lifecycle: authenticated → expired → refresh → authenticated
 - [ ] Verify logout: `dismissFreshdeskViews` → `resetUser` → re-init as a different user
 - [ ] Verify logout while offline: support stays blocked, the reset retries once back online, and the next user never sees the previous user's conversations
@@ -1400,18 +1498,15 @@ Set `SDKConfig.debugMode = BuildConfig.DEBUG` for verbose logging in development
 
 ## Appendix A — Freshchat API surface with no Freshdesk equivalent
 
-Consolidated for planning. Everything here is confirmed absent from Freshdesk Android `2.2.4`.
+Consolidated for planning. Everything here is confirmed absent from Freshdesk Android `2.4.0`.
 
 | Freshchat API | Area |
 |---------------|------|
 | `identifyUser(externalId, restoreId)` | Identity |
 | `getUserIdTokenStatus()` | Identity |
-| `setBotVariables(vars, botVars)` | Bots |
-| `sendMessage(context, FreshchatMessage)` | Messaging |
 | `ConversationOptions.filterByTags(...)` | Filtering |
 | `FaqOptions` (all methods) | Filtering / FAQ UI |
 | `showConversations(ctx, refId, topicName)` (as a persisted thread) | Parallel conversations |
-| `getUnreadCountAsync(callback)` | Unread |
 | `getUnreadCountAsync(callback, tags)` | Unread |
 | `getUnreadCountAsyncWithReferenceId(...)` | Unread |
 | `openFreshchatDeeplink(context, url)` | Navigation |
@@ -1435,7 +1530,7 @@ Consolidated for planning. Everything here is confirmed absent from Freshdesk An
 
 | | Freshchat Android | Freshdesk Android |
 |---|---|---|
-| Version documented | `6.5.10` (versionCode `6510`) | `2.2.4` |
+| Version documented | `6.5.10` (versionCode `6510`) | `2.4.0` |
 | Package | `com.freshchat.consumer.sdk` | `com.freshworks.sdk.freshdesk` |
 | Artifact | `com.github.freshworks:freshchat-android` | `com.freshworks.sdk:freshdesk` |
 | Repository | JitPack | Maven Central |

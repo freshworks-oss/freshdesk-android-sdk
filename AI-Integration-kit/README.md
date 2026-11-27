@@ -42,7 +42,7 @@ Copy or reference these files from your app repository. You do not need to copy 
 ## Scope
 
 - **Platform:** Android only
-- **Mapping versions:** Freshchat Android `6.5.10` → Freshdesk Android `2.2.4` (see migration doc Appendix C; use the latest Freshdesk artifact version on Maven Central when editing Gradle files)
+- **Mapping versions:** Freshchat Android `6.5.10` → Freshdesk Android `2.4.0` (see migration doc Appendix C; use the latest Freshdesk artifact version on Maven Central when editing Gradle files)
 
 ## Freshdesk SDK after migration
 

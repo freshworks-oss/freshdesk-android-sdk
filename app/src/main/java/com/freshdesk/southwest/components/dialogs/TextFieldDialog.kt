@@ -37,6 +37,7 @@ fun TextFieldDialog(
 ) {
     val field1 = rememberSaveable { mutableStateOf(fields.textField1.second) }
     val field2 = rememberSaveable { mutableStateOf(fields.textField2?.second.orEmpty()) }
+    val toggle = rememberSaveable { mutableStateOf(config.toggleInitial) }
     AlertDialog(
         onDismissRequest = {
         },
@@ -47,14 +48,15 @@ fun TextFieldDialog(
             )
         },
         text = {
-            TextFieldDialogForm(config, fields, field1, field2)
+            TextFieldDialogForm(config, fields, field1, field2, toggle)
         },
         confirmButton = {
             ConfirmButton(config.positiveText) {
                 onConfirmed(
                     TextFieldDialog(
                         field1.value,
-                        field2.value
+                        field2.value,
+                        toggle.value
                     )
                 )
             }
@@ -71,6 +73,7 @@ private fun TextFieldDialogForm(
     fields: TextFieldDialogFields,
     field1: MutableState<String>,
     field2: MutableState<String>,
+    toggle: MutableState<Boolean>,
 ) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         FormField(
@@ -94,6 +97,13 @@ private fun TextFieldDialogForm(
                     trailingIcon = { ClearButton { field2.value = "" } }
                 ),
                 onValueChange = { fields.textField2Config.filterInput(it)?.let { next -> field2.value = next } }
+            )
+        }
+        config.toggleLabel?.let { label ->
+            SwitcherItem(
+                labelResId = label,
+                checkedState = toggle.value,
+                onCheckedChange = { toggle.value = it }
             )
         }
     }

@@ -48,6 +48,13 @@
     <string name="conv_ref_id">Conversation Reference Id</string>
     <string name="ref_id">Reference Id</string>
     <string name="topic_name">Topic name</string>
+    <string name="message_to_topic_name">Message to Topic (Name)</string>
+    <string name="message_to_topic_id">Message to Topic (Id)</string>
+    <string name="message">Message</string>
+    <string name="send_instead_of_draft">Send message (off = save as draft)</string>
+    <string name="message_sent_to_topic">Send requested</string>
+    <string name="message_drafted_to_topic">Draft requested</string>
+    <string name="invalid_topic_message_input">Enter a valid topic and a non-empty message</string>
     <string name="topic_id">Topic Id</string>
     <string name="article_id">Article Id</string>
     <string name="open">Open</string>

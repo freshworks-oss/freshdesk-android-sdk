@@ -24,7 +24,7 @@ Do not invent Freshdesk APIs. If the migration doc marks a capability as `NA` or
 - Freshdesk uses an **embedded web widget**, not Freshchat’s native UI. Resource theming (`Theme.Freshchat.*`, `freshchat_*` strings) does **not** carry over; configure appearance in the Freshdesk portal.
 - **`initialize(context, SDKConfig, callback)` is async.** Most SDK calls before init or while offline are **dropped**, not queued indefinitely. Gate UI and preflight-sensitive calls on the init callback (see migration doc §5.2).
 - **Identity is JWT-first.** There is no `identifyUser(externalId, restoreId)`. With JWT enforcement, `setUserProperties` / `setTicketProperties` may be **silently ignored**.
-- **No programmatic messaging** — `Freshchat.sendMessage` has no equivalent.
+- **Messaging is topic-based.** `Freshchat.sendMessage` maps to `messageToTopic(context, topicName | topicId, message, isDraft = true)`. It opens the topic screen and, by default, only **drafts** the text; pass `isDraft = false` to actually send (§11.1).
 - **Custom fields** must exist as Contact/Ticket fields on the portal-linked widget before `setUserProperties` / `setTicketProperties`.
 - **`minSdk` 26** (was 23 on Freshchat).
 
@@ -58,7 +58,7 @@ Before editing app code, confirm **§2** and **§19 Phase 1** with the user (or 
 - JWT enforcement decision and backend signing
 - Contact/Ticket fields whitelisted for every custom property key
 - FCM configured in portal
-- Product/design sign-off on **gaps** (tag filtering, deeplinks, pull unread count, notification interception, native theming, etc.)
+- Product/design sign-off on **gaps** (tag filtering, deeplinks, tag/reference-scoped unread counts, notification interception, native theming, etc.)
 
 If credentials or portal setup are missing, **stop at planning** and output blockers instead of placeholder secrets.
 
@@ -69,7 +69,7 @@ Apply in order:
 1. Remove Freshchat dependency and JitPack if unused elsewhere.
 2. Add Maven Central + `com.freshworks.sdk:freshdesk` (use latest stable version from Maven Central unless the user pins a version).
 3. Raise `minSdk` to 26.
-4. Resolve manifest merge issues (FileProvider `${applicationId}.fileProvider`, backup rules, `enableOnBackInvokedCallback`) per §4.4.
+4. Resolve manifest merge issues (backup rules, `enableOnBackInvokedCallback`) per §4.4.
 5. Remove Freshchat-only resources, themes, `FreshchatImageLoader`, and obsolete ProGuard rules if any.
 
 Match the project’s existing style (Kotlin vs Java, Groovy vs KTS).
@@ -95,14 +95,18 @@ For each inventory row with status **Changed** or **Direct**:
 | `identifyUser` / restore flow | JWT via `SDKConfig.jwt` + `authenticateAndUpdate` |
 | `resetUser(context)` | `resetUser(onSuccess, onFailure)`; block support on failure |
 | `setUser(jwt)` / `restoreUser(jwt)` | init JWT + `authenticateAndUpdate` |
-| `getUnreadCountAsync` | `UNREAD_COUNT` broadcast only |
+| `getUnreadCountAsync(cb)` | `getUnreadCount(): Int` (last known, synchronous) + `UNREAD_COUNT` broadcast; tag/reference-ID variants have no equivalent |
+| `sendMessage` | `messageToTopic(...)` — `isDraft = true` by default (§11.1) |
+| `setBotVariables(vars, botVars)` | `setBotVariables(map)` — merge bot-specific values under `fd_override_bot_property` (§11.2) |
 | `getUserIdTokenStatus()` | `USER_STATE_CHANGE` + `UserState` |
 | Push: `RemoteMessage` helpers | `remoteMessage.data` map variants |
 | `FRESHCHAT_EVENTS` | Per-action `SDKEventID.*` receivers |
 | `setCustomLinkHandler` | `setLinkHandler` (default: open unknown URLs) |
 | String overrides in `res/values` | `ContentConfiguration` |
 
-**Gap rows (Appendix A):** do not implement fake APIs. Add a **Gap report** entry: old behavior, Freshdesk status, suggested workaround (e.g. ticket properties instead of bot variables), owner for product decision.
+**New Freshdesk-only APIs (optional, no Freshchat equivalent):** `openArticle(context, articleId)` (§6.7) and the ticket-form APIs `openTicketForm`, `prefillTicketForm`, `disableTicketFormFields`, `hideTicketFormFields`, `hideTicketFormChoiceFields`, `clearTicketForm` (§6.8). Only add them if the user asks. They are no-ops under JWT enforcement and must be called after the init callback, with an Activity context for UI-opening calls.
+
+**Gap rows (Appendix A):** do not implement fake APIs. Add a **Gap report** entry: old behavior, Freshdesk status, suggested workaround, owner for product decision.
 
 ### Step 5 — Verification (§19 Phase 4)
 
@@ -143,12 +147,12 @@ Provide:
 | API index | §3 |
 | Gradle / manifest | §4 |
 | Initialization | §5 |
-| Opening UI | §6 |
+| Opening UI, articles, ticket forms | §6 |
 | User properties | §7 |
 | Logout / reset | §8 |
 | JWT | §9 |
 | Unread | §10 |
-| sendMessage / bots | §11 |
+| messageToTopic / bot variables | §11 |
 | Push | §12 |
 | Analytics | §13 |
 | Events | §14 |

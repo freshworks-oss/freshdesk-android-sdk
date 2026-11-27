@@ -50,9 +50,11 @@ import com.freshdesk.southwest.components.dialogs.ConfigureSwitcherDialog
 import com.freshdesk.southwest.components.dialogs.ContentConfigurationDialog
 import com.freshdesk.southwest.components.dialogs.LoadAccountForm
 import com.freshdesk.southwest.components.dialogs.ProgressBarDialog
+import com.freshdesk.southwest.components.dialogs.PropertiesStringResource
 import com.freshdesk.southwest.components.dialogs.TextFieldDialog
 import com.freshdesk.southwest.components.dialogs.TextFieldDialogFields
 import com.freshdesk.southwest.components.dialogs.UpdateAuthTokenDialog
+import com.freshdesk.southwest.components.dialogs.UpdateCustomPropertiesDialog
 import com.freshdesk.southwest.components.dialogs.UpdateTicketDialog
 import com.freshdesk.southwest.components.dialogs.UpdateUserDialog
 import com.freshdesk.southwest.components.dialogs.UserDetailDialog
@@ -67,6 +69,7 @@ import com.freshdesk.southwest.data.DataStore.setSelectedAccount
 import com.freshdesk.southwest.data.DialogConfig
 import com.freshdesk.southwest.extensions.applySDK35InsetsListener
 import com.freshdesk.southwest.ui.theme.SouthWestTheme
+import com.freshdesk.southwest.utils.TicketFormJsonParser
 import com.freshdesk.southwest.utils.logd
 import com.freshdesk.southwest.utils.loge
 import com.freshdesk.southwest.utils.logi
@@ -131,11 +134,14 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         ) {
             OpenSupport()
             OpenTopic()
+            MessageToTopicByName()
+            MessageToTopicById()
             ShowKnowledgeBase()
             DismissFreshdeskSDK()
             UpdateJWT()
             UpdateUserProperties()
             UpdateTicketProperties()
+            UpdateBotVariables()
             ApplyDemoContentConfiguration()
             ClearContentConfiguration()
             LogUserEvent()
@@ -233,6 +239,85 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
     }
 
+    /** Opens a topic (by name) with a drafted or sent message. */
+    @Composable
+    fun MessageToTopicByName() {
+        val openDialog = rememberSaveable { mutableStateOf(false) }
+        if (openDialog.value) {
+            TextFieldDialog(
+                config = DialogConfig(
+                    title = R.string.message_to_topic_name,
+                    positiveText = R.string.send,
+                    toggleLabel = R.string.send_instead_of_draft
+                ),
+                fields = TextFieldDialogFields(
+                    textField1 = Pair(R.string.topic_name, DataStore.getConvTopicName()),
+                    textField2 = Pair(R.string.message, ""),
+                ),
+                onConfirmed = {
+                    openDialog.value = false
+                    val topicName = it.field1.trim()
+                    val message = it.field2
+                    if (topicName.isEmpty() || message.isBlank()) {
+                        toast(getString(R.string.invalid_topic_message_input))
+                    } else {
+                        DataStore.setConvTopicName(topicName)
+                        FreshdeskSDK.messageToTopic(this@SettingsActivity, topicName, message, isDraft = !it.toggle)
+                        toast(
+                            getString(
+                                if (it.toggle) R.string.message_sent_to_topic else R.string.message_drafted_to_topic
+                            )
+                        )
+                    }
+                },
+                onDismissed = { openDialog.value = false }
+            )
+        }
+        ButtonText(textId = R.string.message_to_topic_name) {
+            openDialog.value = true
+        }
+    }
+
+    /** Opens a topic (by numeric id) with a drafted or sent message. */
+    @Composable
+    fun MessageToTopicById() {
+        val openDialog = rememberSaveable { mutableStateOf(false) }
+        if (openDialog.value) {
+            TextFieldDialog(
+                config = DialogConfig(
+                    title = R.string.message_to_topic_id,
+                    positiveText = R.string.send,
+                    toggleLabel = R.string.send_instead_of_draft
+                ),
+                fields = TextFieldDialogFields(
+                    textField1 = Pair(R.string.topic_id, DataStore.getConvTopicId()),
+                    textField2 = Pair(R.string.message, ""),
+                    textField1Config = FieldConfig(keyboardType = KeyboardType.Number),
+                ),
+                onConfirmed = {
+                    openDialog.value = false
+                    val topicId = it.field1.trim().toLongOrNull()
+                    val message = it.field2
+                    if (topicId == null || message.isBlank()) {
+                        toast(getString(R.string.invalid_topic_message_input))
+                    } else {
+                        DataStore.setConvTopicId(topicId.toString())
+                        FreshdeskSDK.messageToTopic(this@SettingsActivity, topicId, message, isDraft = !it.toggle)
+                        toast(
+                            getString(
+                                if (it.toggle) R.string.message_sent_to_topic else R.string.message_drafted_to_topic
+                            )
+                        )
+                    }
+                },
+                onDismissed = { openDialog.value = false }
+            )
+        }
+        ButtonText(textId = R.string.message_to_topic_id) {
+            openDialog.value = true
+        }
+    }
+
     @Composable
     fun OpenArticle() {
         val openDialog = rememberSaveable { mutableStateOf(false) }
@@ -286,6 +371,39 @@ class SettingsActivity : ComponentActivity(), FreshDeskSDKLinkHandler {
         }
         ButtonText(textId = R.string.update_ticket_properties) {
             openDialog.value = true
+        }
+    }
+
+    @Composable
+    private fun UpdateBotVariables() {
+        val openUpdateCustomBotVariables = rememberSaveable { mutableStateOf(false) }
+        if (openUpdateCustomBotVariables.value) {
+            UpdateCustomPropertiesDialog(
+                propertiesStringResource = PropertiesStringResource(
+                    dialogTitle = R.string.update_custom_bot_variables,
+                    propertiesFormDescription = R.string.bot_variables_description,
+                    labelId = R.string.bot_variables,
+                ),
+                customProperties = "",
+                onConfirmed = { botVariablesJson ->
+                    val botVariables = when {
+                        botVariablesJson.isBlank() -> emptyMap()
+                        else -> TicketFormJsonParser.parseFieldValues(botVariablesJson)
+                    }
+                    if (!botVariablesJson.isBlank() && botVariables == null) {
+                        toast(getString(R.string.inbound_event_invalid_input))
+                        return@UpdateCustomPropertiesDialog
+                    }
+                    FreshdeskSDK.setBotVariables(botVariables = botVariables ?: emptyMap())
+                    openUpdateCustomBotVariables.value = false
+                },
+                onDismissed = {
+                    openUpdateCustomBotVariables.value = false
+                }
+            )
+        }
+        ButtonText(textId = R.string.update_custom_bot_variables) {
+            openUpdateCustomBotVariables.value = true
         }
     }
 
